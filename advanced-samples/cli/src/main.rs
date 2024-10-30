@@ -14,23 +14,47 @@ mod read;
 mod replace;
 mod upsert;
 
-/// A set of basic examples for interacting with Cosmos.
+/// An example which shows how you might create a CLI tool for managing items in Cosmos DB using the Rust SDK.
 ///
 /// NOTE: This is not intended to be a general-purpose CLI for managing items in Cosmos DB.
-/// It exists for illustrative purposes and to simplify ad-hoc end-to-end testing.
+/// It exists for illustrative purposes, and could also be used to simplify ad-hoc end-to-end testing.
 /// 
-/// usage examples:
+/// usage examples when running from command line:
 /// 
-/// create database:
-/// cargo run -- "https://vector-search-prod.documents.azure.com:443/" create database my-database
 /// 
-/// create database with auth key:
+/// Note: database must already exist as database creation is not supported when using RBAC or DefaultAzureCredential. 
+/// If you are using a service principal that did not create the account, you must also create containers using the Azure Portal or the Azure CLI.
 /// 
-/// cargo run -- "https://vector-search-prod.documents.azure.com:443/" --key "my-auth-key" create database my-database
+/// First sign in using az login, then set the subscription and resource group.
+/// 
+/// Set an environment variable for your Cosmos DB endpoint: COSMOSDB_ENDPOINT
+/// 
+/// For windows (use "$COSMOSDB_ENDPOINT" for Linux):
+/// 
+/// create container:
+/// 
+/// cargo run -- "%COSMOSDB_ENDPOINT%" create container database-name --id container-name --partition-key "/id"
 /// 
 /// create item:
 /// 
-/// cargo run -- "https://tvk-my-cosmos-account.documents.azure.com:443/" create item database container --partition-key "my-item-id" --json "{\"id\": \"my-item-id\", \"name\": \"my-item-name\"}"
+/// cargo run -- "%COSMOSDB_ENDPOINT%" create item database-name container-name --partition-key "my-item-id" --json "{\"id\": \"my-item-id\", \"name\": \"my-item-name\"}"
+/// 
+/// upsert item:
+/// 
+/// cargo run -- "%COSMOSDB_ENDPOINT%" upsert --partition-key "my-item-id" --json "{\"id\": \"my-item-id\", \"name\": \"my-item-name-changed\"}" database-name container-name
+/// 
+/// read item:
+/// 
+/// cargo run -- "%COSMOSDB_ENDPOINT%" read database-name container-name --item-id "my-item-id" --partition-key "my-item-id"
+/// 
+/// query items:
+/// 
+/// cargo run -- "%COSMOSDB_ENDPOINT%" query items database-name container-name "select * from c" --partition-key "my-item-id"
+/// 
+/// delete item:
+/// 
+/// cargo run -- "%COSMOSDB_ENDPOINT%" delete item database-name container-name --item-id "my-item-id" --partition-key "my-item-id"
+
 
 /// 
 #[derive(Clone, Parser)]

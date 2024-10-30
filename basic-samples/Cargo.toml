@@ -1,2 +1,2 @@
 [workspace]
-members = ["container-crud", "crud-quickstart"]
+members = ["container-crud", "document-crud"]

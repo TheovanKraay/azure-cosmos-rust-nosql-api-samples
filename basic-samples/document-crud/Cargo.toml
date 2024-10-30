@@ -1,5 +1,5 @@
 [package]
-name = "crud-quickstart"
+name = "document-crud"
 version = "0.1.0"
 edition = "2021"
 
