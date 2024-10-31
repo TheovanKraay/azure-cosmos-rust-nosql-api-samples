@@ -1,7 +1,9 @@
 use azure_core::StatusCode;
-use azure_data_cosmos::CosmosClient;
+use azure_data_cosmos::{CosmosClient, PartitionKey};
 use azure_identity::DefaultAzureCredential;
 use tokio;
+use serde_json::json;
+use futures::StreamExt;
 use std::env;
 
 #[tokio::main]
@@ -26,30 +28,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set container (ensure this container already exists ith partition key of "/pk")
     let container = "container-name".to_string();
 
-    let db_client = client.database_client(database);
-    let container_client = db_client.container_client(container);
+    let db_client = client.database_client(database.clone());
+    let container_client = db_client.container_client(container.clone());
 
-    let item = serde_json::json!({
-        "id": "my-item-id-value",
-        "pk": "my-item-partition-key-value",
-        "name": "my-item-name",
-    });
-
-    // create item
-    match container_client.create_item("my-item-partition-key-value", item, None).await {
-        Ok(create_response) => {
-            let created_item = create_response.deserialize_body().await?;
-            println!("Created item: {:#?}", created_item);
+    let items = vec![
+        json!({
+            "id": "my-item-id-value-1",
+            "pk": "my-item-partition-key-value",
+            "name": "my-item-name-1",
+        }),
+        json!({
+            "id": "my-item-id-value-2",
+            "pk": "my-item-partition-key-value",
+            "name": "my-item-name-2",
+        }),
+    ];
+    
+    for item in items {
+        let item_id = item["id"].clone();
+        match container_client.create_item("my-item-partition-key-value", item, None).await {
+            Ok(create_response) => {
+                let created_item = create_response.deserialize_body().await?;
+                println!("Created item: {:#?}", created_item);
+            }
+            Err(e) if e.http_status() == Some(StatusCode::Conflict) => {
+                return Err(format!("Document with ID '{}' already exists.", item_id).into());
+            }
+            Err(e) => return Err(e.into()),
         }
-        Err(e) if e.http_status() == Some(StatusCode::Conflict) => {
-            return Err(format!("Document with ID 'my-item-id-value' already exists.").into());
-        }
-        Err(e) => return Err(e.into()),
     }
+
 
     // read item
     let read_response = container_client
-    .read_item("my-item-partition-key-value", "my-item-id-value", None)
+    .read_item("my-item-partition-key-value", "my-item-id-value-1", None)
     .await;
     match read_response {
         Err(e) if e.http_status() == Some(StatusCode::NotFound) => println!("Item not found!"),
@@ -61,9 +73,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => return Err(e.into()),
     };
 
+    // query items
+    let query = "SELECT * FROM c";
+
+    let db_client = client.database_client(&database);
+    let container_client = db_client.container_client(&container);
+
+    let pk = PartitionKey::from("my-item-partition-key-value");
+    let mut items =
+        container_client.query_items::<serde_json::Value>(&query.to_string(), pk, None)?;
+
+    while let Some(page) = items.next().await {
+        let page = page?.deserialize_body().await?;
+        println!("Query results page");
+        println!("  Items:");
+        for item in page.items {
+            println!("    * {:#?}", item);
+        }
+    }
+    
+
     // upsert item
     let upsert_item = serde_json::json!({
-        "id": "my-item-id-value",
+        "id": "my-item-id-value-1",
         "pk": "my-item-partition-key-value",
         "name": "my-item-name-updated",
     });
@@ -76,15 +108,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Upsert item:");
     println!("{:#?}", upsert_response);
 
-    // delete item
-    let delete_response = container_client
-    .delete_item("my-item-partition-key-value", "my-item-id-value", None)
-    .await;
-    match delete_response {
-        Err(e) if e.http_status() == Some(StatusCode::NotFound) => println!("Item not found!"),
-        Ok(_) => println!("Item deleted"),
-        Err(e) => return Err(e.into()),
-    };
+    // replace item
+
+    let replace_item = serde_json::json!({
+        "id": "my-item-id-value-2",
+        "pk": "my-item-partition-key-value",
+        "name": "my-item-name-replaced",
+    });
+    let replace_response = container_client
+    .replace_item("my-item-partition-key-value", "my-item-id-value-2", replace_item, None)
+    .await?
+    .deserialize_body()
+    .await?
+    .unwrap();
+    println!("Replace item:");
+    println!("{:#?}", replace_response);
+
+    // delete items
+    let item_ids = vec!["my-item-id-value-1", "my-item-id-value-2"];
+
+    for item_id in item_ids {
+        let delete_response = container_client
+            .delete_item("my-item-partition-key-value", item_id, None)
+            .await;
+    
+        match delete_response {
+            Err(e) if e.http_status() == Some(StatusCode::NotFound) => {
+                println!("Item with ID '{}' not found!", item_id);
+            }
+            Ok(_) => {
+                println!("Item with ID '{}' deleted", item_id);
+            }
+            Err(e) => {
+                eprintln!("Error deleting item with ID '{}': {}", item_id, e);
+                return Err(e.into()); // Stop on the first error encountered
+            }
+        }
+    }
     
     Ok(())
 }

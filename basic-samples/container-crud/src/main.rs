@@ -1,11 +1,17 @@
-use azure_data_cosmos::{models::{ContainerProperties, PartitionKeyDefinition}, CosmosClient, PartitionKey};
+use azure_data_cosmos::{models::{ContainerProperties, IndexingMode, IndexingPolicy, PartitionKeyDefinition, PropertyPath}, CosmosClient, PartitionKey};
 use azure_identity::DefaultAzureCredential;
 use tokio;
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Replace with your actual Cosmos DB credentials
-    let endpoint = "https://tvk-my-cosmos-account.documents.azure.com:443/";
+    // Load cosmos db environment variables
+    match env::var("COSMOSDB_ENDPOINT") {
+        Ok(value) => println!("COSMOSDB_ENDPOINT is: {}", value),
+        Err(e) => println!("Couldn't read COSMOSDB_ENDPOINT ({})", e),
+    }
+
+    let endpoint = env::var("COSMOSDB_ENDPOINT").unwrap();
     let credential = DefaultAzureCredential::new().unwrap();
 
     // Create a Cosmos client
@@ -21,16 +27,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let container_id = container;
     let properties = ContainerProperties {
         id: container_id.to_string(),
-        partition_key: PartitionKeyDefinition::new(vec![partition_key]),
+        partition_key: PartitionKeyDefinition::new(vec![partition_key.clone()]),
+        indexing_policy: Some(IndexingPolicy {
+            automatic: true,
+            indexing_mode: Some(IndexingMode::Consistent),
+            included_paths: vec![PropertyPath { path: "/".to_string() }],
+            excluded_paths: vec![PropertyPath { path: "/objects/*".to_string() }],
+            composite_indexes: vec![],
+            spatial_indexes: vec![],
+            vector_indexes: vec![],
+        }),
         ..Default::default()
     };
     client
-    .database_client(database)
+    .database_client(database.clone())
     .create_container(properties, None)
     .await?
     .deserialize_body()
     .await?
     .unwrap();
+
+    print!("Container created");
 
     Ok(())
 }
