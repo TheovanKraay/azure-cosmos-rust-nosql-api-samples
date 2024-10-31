@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a Cosmos client
     let client = CosmosClient::new(endpoint, credential, None)?;
 
-    // Set database (create database not support in RBAC)
+    // Set database (the database must exist - create database not supported in RBAC)
     let database = "my-database".to_string();
 
 

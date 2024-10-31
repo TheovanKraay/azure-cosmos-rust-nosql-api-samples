@@ -26,15 +26,16 @@ Sample code repository for Azure Cosmos DB Rust SDK for NoSQL API. By cloning an
 ## Prerequisites
 
 * Rust (1.56 or newer)
-* Setting up an Azure Cosmos DB account through the Azure Portal. This [guide](https://learn.microsoft.com/azure/cosmos-db/nosql/quickstart-portal) walks you through account creation.
+* Setting up an Azure Cosmos DB account through the Azure Portal. The **Create a database account** section of [this guide](https://docs.microsoft.com/en-us/azure/cosmos-db/create-sql-api-rust) walks you through account creation.
 * The hostname and master key for your Azure Cosmos DB account
+* Azure SDK for Rust `azure_identity` crate for authentication
 
 ## Setup
 
 Clone the sample to your PC. You can run the samples using Cargo.
 
 ```bash
-git clone https://github.com/Azure-Samples/azure-cosmos-rust-nosql-api-samples.git
+git clone https://github.com/yourusername/azure-cosmos-rust-nosql-api-samples.git
 cd azure-cosmos-rust-nosql-api-samples/basic-samples/container-crud
 ```
 
@@ -45,6 +46,18 @@ These environment variables must be set in order to give the samples read/write 
 ```bash
 export COSMOSDB_ENDPOINT=your_account_hostname
 ```
+
+### Authentication with DefaultAzureCredential
+
+To authenticate with Azure Cosmos DB, you can use `DefaultAzureCredential` from the `azure_identity` crate. A simple way to get the sample working is to log in to Azure using the Azure CLI:
+
+```bash
+az login
+```
+
+This credential type will automatically attempt to authenticate via multiple methods, including environment variables, managed identities, and Azure CLI credentials. Ensure that you have the required authentication setup for your Azure account.
+
+For more details on the `azure_identity` crate, refer to the documentation [here](https://docs.rs/azure_identity/latest/azure_identity/).
 
 To run a sample, use Cargo:
 
