@@ -22,10 +22,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a Cosmos client
     let client = CosmosClient::new(endpoint, credential, None)?;
 
-    // Set database (create database not support in RBAC)
+    // Set database (database must already exist, create database not support in RBAC)
     let database = "database-name".to_string();
 
-    // Set container (ensure this container already exists ith partition key of "/pk")
+    // Set container (ensure this container already exists with partition key of "/pk")
     let container = "container-name".to_string();
 
     let db_client = client.database_client(database.clone());
